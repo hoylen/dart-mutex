@@ -34,7 +34,7 @@ class _ReadWriteMutexRequest {
 ///     }
 ///
 /// Other code can acquire a read lock.
-///     
+///
 ///     await m.acquireRead();
 ///     try {
 ///       // critical read section
@@ -50,7 +50,8 @@ class _ReadWriteMutexRequest {
 /// request issue, if there is a need for another scheduling algorithm.
 ///
 class ReadWriteMutex {
-  final List<_ReadWriteMutexRequest> _waiting = new List<_ReadWriteMutexRequest>();
+  final List<_ReadWriteMutexRequest> _waiting =
+      new List<_ReadWriteMutexRequest>();
 
   int _state = 0; // -1 = write lock, +ve = number of read locks; 0 = no lock
 
