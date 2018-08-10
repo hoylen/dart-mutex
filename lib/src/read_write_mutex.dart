@@ -6,11 +6,21 @@ part of mutex;
 /// to the waiting queue.
 ///
 class _ReadWriteMutexRequest {
+  /// Indicates if this is a read or write lock.
+
   final bool isRead; // true = read lock requested; false = write lock requested
 
-  final Completer completer = new Completer();
+  /// The job's completer.
+  ///
+  /// This [Completer] will complete when the job has acquired a lock.
 
-  _ReadWriteMutexRequest(this.isRead);
+  final Completer<void> completer = new Completer<void>();
+
+  /// Internal constructor.
+  ///
+  /// The [isRead] indicates if this is a read lock (true) or a write lock (false).
+
+  _ReadWriteMutexRequest({this.isRead});
 }
 
 /// Mutual exclusion that supports read and write locks.
@@ -50,8 +60,7 @@ class _ReadWriteMutexRequest {
 /// request issue, if there is a need for another scheduling algorithm.
 ///
 class ReadWriteMutex {
-  final List<_ReadWriteMutexRequest> _waiting =
-      new List<_ReadWriteMutexRequest>();
+  final _waiting = <_ReadWriteMutexRequest>[];
 
   int _state = 0; // -1 = write lock, +ve = number of read locks; 0 = no lock
 
@@ -88,7 +97,7 @@ class ReadWriteMutex {
       // Read lock released
       _state--;
     } else if (_state == 0) {
-      throw new StateError("no lock to release");
+      throw new StateError('no lock to release');
     } else {
       assert(false);
     }
@@ -96,7 +105,7 @@ class ReadWriteMutex {
     // Let all jobs that can now acquire a lock do so.
 
     while (_waiting.isNotEmpty) {
-      var nextJob = _waiting.first;
+      final nextJob = _waiting.first;
       if (_jobAcquired(nextJob)) {
         _waiting.removeAt(0);
       } else {
@@ -108,7 +117,7 @@ class ReadWriteMutex {
   /// Internal acquire method.
   ///
   Future _acquire(bool isRead) {
-    var newJob = new _ReadWriteMutexRequest(isRead);
+    final newJob = new _ReadWriteMutexRequest(isRead: isRead);
     if (!_jobAcquired(newJob)) {
       _waiting.add(newJob);
     }
