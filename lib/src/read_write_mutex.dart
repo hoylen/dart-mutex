@@ -13,8 +13,12 @@ class _ReadWriteMutexRequest {
   /// The job's completer.
   ///
   /// This [Completer] will complete when the job has acquired a lock.
+  ///
+  /// This should be defined as Completer<void>, but void is not supported in
+  /// Dart 1 (it only appeared in Dart 2). A type must be defined, otherwise
+  /// the Dart 2 dartanalyzer complains.
 
-  final Completer<void> completer = new Completer<void>();
+  final Completer<int> completer = new Completer<int>();
 
   /// Internal constructor.
   ///
@@ -134,7 +138,7 @@ class ReadWriteMutex {
     if (_state == 0 || (0 < _state && job.isRead)) {
       // Can acquire
       _state = (job.isRead) ? (_state + 1) : -1;
-      job.completer.complete();
+      job.completer.complete(0); // dummy value
       return true;
     } else {
       return false;
