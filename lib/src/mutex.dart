@@ -16,7 +16,7 @@ part of mutex;
 ///
 class Mutex {
   // Implemented as a ReadWriteMutex that is used only with write locks.
-  final ReadWriteMutex _rwMutex = new ReadWriteMutex();
+  final ReadWriteMutex _rwMutex = ReadWriteMutex();
 
   /// Indicates if a lock has currently been acquired.
   bool get isLocked => (_rwMutex.isLocked);

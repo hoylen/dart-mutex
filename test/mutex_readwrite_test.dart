@@ -10,21 +10,23 @@ import 'package:mutex/mutex.dart';
 Future sleep([Duration duration]) async {
   assert(duration != null && duration is Duration);
 
-  var completer = new Completer();
-  new Timer(duration, () {
-    completer.complete();
-  });
+  final completer = Completer<void>();
+  Timer(duration, completer.complete);
 
   return completer.future;
 }
 
 class RWTester {
+  RWTester() {
+    _startTime = DateTime.now();
+  }
+
   int get numWrites => _numWrites;
   int _numWrites = 0;
 
   int _operation = 0;
 
-  ReadWriteMutex mutex = new ReadWriteMutex();
+  ReadWriteMutex mutex = ReadWriteMutex();
 
   /// Set to true to print out read/write to the balance during deposits
   static final bool debugOutput = false;
@@ -34,34 +36,26 @@ class RWTester {
   void _debugPrint([String message]) {
     if (debugOutput) {
       if (message != null) {
-        var t = new DateTime.now().difference(_startTime).inMilliseconds;
-        print("$t: $message");
+        final t = DateTime.now().difference(_startTime).inMilliseconds;
+        print('$t: $message');
       } else {
-        print("");
+        print('');
       }
     }
-  }
-
-  /// Constructor for an account.
-  ///
-  /// Uses RentrantMutex if [reentrant] is true; otherwise uses NormalMutex.
-  ///
-  RWTester() {
-    _startTime = new DateTime.now();
   }
 
   void reset([int startingBalance = 0]) {
     _numWrites = startingBalance;
     if (debugOutput) {
-      _startTime = new DateTime.now();
+      _startTime = DateTime.now();
       _debugPrint();
     }
   }
 
   /// Waits [startDelay] and then invokes critical section with mutex.
   ///
-  Future writing(int startDelay, int dangerWindow) async {
-    await sleep(new Duration(milliseconds: startDelay));
+  Future<void> writing(int startDelay, int dangerWindow) async {
+    await sleep(Duration(milliseconds: startDelay));
 
     await mutex.acquireWrite();
     try {
@@ -71,7 +65,7 @@ class RWTester {
     }
   }
 
-  /// Critical section of adding [amount] to the balance.
+  /// Critical section of adding an amount to the balance.
   ///
   /// Reads the balance, then sleeps for [dangerWindow] milliseconds, before
   /// saving the new balance. If not protected, another invocation of this
@@ -80,28 +74,27 @@ class RWTester {
   /// balances (effectively those other deposits will be lost).
   ///
   Future _writingCriticalSection(int dangerWindow) async {
-    var op = ++_operation;
+    final op = ++_operation;
 
-    _debugPrint("[$op] write start: <- $_numWrites");
+    _debugPrint('[$op] write start: <- $_numWrites');
 
-    var tmp = _numWrites;
+    final tmp = _numWrites;
     expect(mutex.isWriteLocked, isTrue);
-    await sleep(new Duration(milliseconds: dangerWindow));
+    await sleep(Duration(milliseconds: dangerWindow));
     expect(mutex.isWriteLocked, isTrue);
     expect(_numWrites, equals(tmp));
 
     _numWrites = tmp + 1; // change the balance
 
-    _debugPrint("[$op] write finish: -> $_numWrites");
+    _debugPrint('[$op] write finish: -> $_numWrites');
   }
-
 
   /// Waits [startDelay] and then invokes critical section with mutex.
   ///
   /// This method demonstrates the use of a read lock on the mutex.
   ///
-  Future<double> reading(int startDelay, int dangerWindow) async {
-    await sleep(new Duration(milliseconds: startDelay));
+  Future<void> reading(int startDelay, int dangerWindow) async {
+    await sleep(Duration(milliseconds: startDelay));
 
     await mutex.acquireRead();
     try {
@@ -113,32 +106,31 @@ class RWTester {
 
   /// Critical section that must be done in a read lock.
   ///
-  Future _readingCriticalSection(int dangerWindow) async {
-    var op = ++_operation;
+  Future<void> _readingCriticalSection(int dangerWindow) async {
+    final op = ++_operation;
 
-    _debugPrint("[$op] read start: <- $_numWrites");
+    _debugPrint('[$op] read start: <- $_numWrites');
 
-    var tmp = _numWrites;
+    final tmp = _numWrites;
     expect(mutex.isReadLocked, isTrue);
-    await sleep(new Duration(milliseconds: dangerWindow));
+    await sleep(Duration(milliseconds: dangerWindow));
     expect(mutex.isReadLocked, isTrue);
     expect(_numWrites, equals(tmp));
 
-
-    _debugPrint("[$op] read finish: <- $_numWrites");
+    _debugPrint('[$op] read finish: <- $_numWrites');
   }
 }
 
 //----------------------------------------------------------------
 
 void main() {
-  var account = new RWTester();
+  final account = RWTester();
 
-  test("multiple read locks", () async {
-    const int delay = 200; // milliseconds
-    const int overhead = 50; // milliseconds
+  test('multiple read locks', () async {
+    const delay = 200; // milliseconds
+    const overhead = 50; // milliseconds
     account.reset();
-    var startTime = new DateTime.now();
+    final startTime = DateTime.now();
     await Future.wait([
       account.reading(0, delay),
       account.reading(0, delay),
@@ -151,18 +143,18 @@ void main() {
       account.reading(0, delay),
       account.reading(0, delay),
     ]);
-    var finishTime = new DateTime.now();
-    var ms = finishTime.difference(startTime).inMilliseconds;
+    final finishTime = DateTime.now();
+    final ms = finishTime.difference(startTime).inMilliseconds;
     expect(ms, greaterThan(delay));
     expect(ms, lessThan(delay + overhead));
     expect(account.numWrites, equals(0));
   });
 
-  test("multiple write locks", () async {
-    const int delay = 200; // milliseconds
-    const int overhead = 100; // milliseconds
+  test('multiple write locks', () async {
+    const delay = 200; // milliseconds
+    const overhead = 100; // milliseconds
     account.reset();
-    var startTime = new DateTime.now();
+    final startTime = DateTime.now();
     await Future.wait([
       account.writing(0, delay),
       account.writing(0, delay),
@@ -175,18 +167,18 @@ void main() {
       account.writing(0, delay),
       account.writing(0, delay),
     ]);
-    var finishTime = new DateTime.now();
-    var ms = finishTime.difference(startTime).inMilliseconds;
+    final finishTime = DateTime.now();
+    final ms = finishTime.difference(startTime).inMilliseconds;
     expect(ms, greaterThan(delay * 10));
     expect(ms, lessThan(delay * 10 + overhead));
     expect(account.numWrites, equals(10));
   });
 
-  test("mixture of read and write locks", () async {
-    const int delay = 200; // milliseconds
-    const int overhead = 100; // milliseconds
+  test('mixture of read and write locks', () async {
+    const delay = 200; // milliseconds
+    const overhead = 100; // milliseconds
     account.reset();
-    var startTime = new DateTime.now();
+    final startTime = DateTime.now();
     await Future.wait([
       account.writing(0, 1000),
       account.reading(100, delay),
@@ -205,8 +197,8 @@ void main() {
       account.reading(230, delay),
       account.reading(240, delay),
     ]);
-    var finishTime = new DateTime.now();
-    var ms = finishTime.difference(startTime).inMilliseconds;
+    final finishTime = DateTime.now();
+    final ms = finishTime.difference(startTime).inMilliseconds;
     expect(ms, greaterThan(1000 + delay * 9));
     expect(ms, lessThan(1000 + delay * 9 + overhead));
     expect(account.numWrites, equals(7));

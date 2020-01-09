@@ -6,6 +6,12 @@ part of mutex;
 /// to the waiting queue.
 ///
 class _ReadWriteMutexRequest {
+  /// Internal constructor.
+  ///
+  /// The [isRead] indicates if this is a read lock (true) or a write lock (false).
+
+  _ReadWriteMutexRequest({this.isRead});
+
   /// Indicates if this is a read or write lock.
 
   final bool isRead; // true = read lock requested; false = write lock requested
@@ -18,13 +24,7 @@ class _ReadWriteMutexRequest {
   /// Dart 1 (it only appeared in Dart 2). A type must be defined, otherwise
   /// the Dart 2 dartanalyzer complains.
 
-  final Completer<int> completer = new Completer<int>();
-
-  /// Internal constructor.
-  ///
-  /// The [isRead] indicates if this is a read lock (true) or a write lock (false).
-
-  _ReadWriteMutexRequest({this.isRead});
+  final Completer<int> completer = Completer<int>();
 }
 
 /// Mutual exclusion that supports read and write locks.
@@ -101,7 +101,7 @@ class ReadWriteMutex {
       // Read lock released
       _state--;
     } else if (_state == 0) {
-      throw new StateError('no lock to release');
+      throw StateError('no lock to release');
     } else {
       assert(false);
     }
@@ -121,7 +121,7 @@ class ReadWriteMutex {
   /// Internal acquire method.
   ///
   Future _acquire(bool isRead) {
-    final newJob = new _ReadWriteMutexRequest(isRead: isRead);
+    final newJob = _ReadWriteMutexRequest(isRead: isRead);
     if (!_jobAcquired(newJob)) {
       _waiting.add(newJob);
     }

@@ -10,10 +10,8 @@ import 'package:mutex/mutex.dart';
 Future sleep([Duration duration]) async {
   assert(duration != null && duration is Duration);
 
-  var completer = new Completer();
-  new Timer(duration, () {
-    completer.complete();
-  });
+  final completer = Completer<void>();
+  Timer(duration, completer.complete);
 
   return completer.future;
 }
@@ -30,21 +28,21 @@ class Account {
 
   int _operation = 0;
 
-  Mutex mutex = new Mutex();
+  Mutex mutex = Mutex();
 
   /// Set to true to print out read/write to the balance during deposits
   static final bool debugOutput = false;
 
   /// Time used for calculating time offsets in debug messages.
-  DateTime _startTime = new DateTime.now();
+  DateTime _startTime = DateTime.now();
 
   void _debugPrint([String message]) {
     if (debugOutput) {
       if (message != null) {
-        var t = new DateTime.now().difference(_startTime).inMilliseconds;
-        print("$t: $message");
+        final t = DateTime.now().difference(_startTime).inMilliseconds;
+        print('$t: $message');
       } else {
-        print("");
+        print('');
       }
     }
   }
@@ -52,22 +50,24 @@ class Account {
   void reset([int startingBalance = 0]) {
     _balance = startingBalance;
     if (debugOutput) {
-      _startTime = new DateTime.now();
+      _startTime = DateTime.now();
       _debugPrint();
     }
   }
 
   /// Waits [startDelay] and then invokes critical section without mutex.
   ///
-  Future depositUnsafe(int amount, int startDelay, int dangerWindow) async {
-    await sleep(new Duration(milliseconds: startDelay));
+  Future<void> depositUnsafe(
+      int amount, int startDelay, int dangerWindow) async {
+    await sleep(Duration(milliseconds: startDelay));
     await _depositCriticalSection(amount, dangerWindow);
   }
 
   /// Waits [startDelay] and then invokes critical section with mutex.
   ///
-  Future depositWithMutex(int amount, int startDelay, int dangerWindow) async {
-    await sleep(new Duration(milliseconds: startDelay));
+  Future<void> depositWithMutex(
+      int amount, int startDelay, int dangerWindow) async {
+    await sleep(Duration(milliseconds: startDelay));
 
     await mutex.acquire();
     try {
@@ -88,26 +88,26 @@ class Account {
   /// balances (effectively those other deposits will be lost).
   ///
   Future _depositCriticalSection(int amount, int dangerWindow) async {
-    var op = ++_operation;
+    final op = ++_operation;
 
-    _debugPrint("[$op] read balance: $_balance");
+    _debugPrint('[$op] read balance: $_balance');
 
-    var tmp = _balance;
-    await sleep(new Duration(milliseconds: dangerWindow));
+    final tmp = _balance;
+    await sleep(Duration(milliseconds: dangerWindow));
     _balance = tmp + amount;
 
-    _debugPrint("[$op] write balance: $_balance (= $tmp + $amount)");
+    _debugPrint('[$op] write balance: $_balance (= $tmp + $amount)');
   }
 }
 
 //----------------------------------------------------------------
 
 void main() {
-  final int CORRECT_BALANCE = 68;
+  final correctBalance = 68;
 
-  var account = new Account();
+  final account = Account();
 
-  test("without mutex", () async {
+  test('without mutex', () async {
     // First demonstrate that without mutex incorrect results are produced.
 
     // Without mutex produces incorrect result
@@ -116,7 +116,7 @@ void main() {
     // 050. a writes 42
     // 075. b writes 26
     account.reset();
-    await Future.wait([
+    await Future.wait<void>([
       account.depositUnsafe(42, 0, 50),
       account.depositUnsafe(26, 25, 50) // result overwrites first deposit
     ]);
@@ -135,7 +135,7 @@ void main() {
     expect(account.balance, equals(42)); // incorrect: second deposit lost
   });
 
-  test("with mutex", () async {
+  test('with mutex', () async {
 // Test correct results are produced with mutex
 
     // With mutex produces correct result
@@ -152,7 +152,7 @@ void main() {
       account.depositWithMutex(42, 0, 50),
       account.depositWithMutex(26, 25, 50)
     ]);
-    expect(account.balance, equals(CORRECT_BALANCE));
+    expect(account.balance, equals(correctBalance));
 
     // With mutex produces correct result
     // 000. b acquires lock
@@ -168,15 +168,15 @@ void main() {
       account.depositWithMutex(42, 25, 50),
       account.depositWithMutex(26, 0, 50)
     ]);
-    expect(account.balance, equals(CORRECT_BALANCE));
+    expect(account.balance, equals(correctBalance));
   });
 
-  test("multiple acquires are serialized", () async {
+  test('multiple acquires are serialized', () async {
     // Demonstrate that sections running in a mutex are effectively serialized
-    const int delay = 200; // milliseconds
-    const int overhead = 100; // milliseconds
+    const delay = 200; // milliseconds
+    const overhead = 100; // milliseconds
     account.reset();
-    var startTime = new DateTime.now();
+    final startTime = DateTime.now();
     await Future.wait([
       account.depositWithMutex(1, 0, delay),
       account.depositWithMutex(1, 0, delay),
@@ -189,8 +189,8 @@ void main() {
       account.depositWithMutex(1, 0, delay),
       account.depositWithMutex(1, 0, delay),
     ]);
-    var finishTime = new DateTime.now();
-    var ms = finishTime.difference(startTime).inMilliseconds;
+    final finishTime = DateTime.now();
+    final ms = finishTime.difference(startTime).inMilliseconds;
     expect(ms, greaterThan(delay * 10));
     expect(ms, lessThan(delay * 10 + overhead));
   });

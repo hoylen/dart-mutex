@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.2
+
+- Code clean up to satisfy pana 0.13.2 health checks.
+
 ## 1.0.1
 
 - Fixed dartanalyzer warnings.
