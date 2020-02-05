@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.3
+
+- Added an example.
+
 ## 1.0.2
 
 - Code clean up to satisfy pana 0.13.2 health checks.
