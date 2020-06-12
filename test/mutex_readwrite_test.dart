@@ -21,10 +21,14 @@ class RWTester {
     _startTime = DateTime.now();
   }
 
-  int get numWrites => _numWrites;
-  int _numWrites = 0;
-
   int _operation = 0;
+  final _operationSequences = <int>[];
+
+  /// Execution sequence of the operations done.
+  ///
+  /// Each element corresponds to the position of the initial execution
+  /// order of the read/write operation future.
+  List<int> get operationSequences => _operationSequences;
 
   ReadWriteMutex mutex = ReadWriteMutex();
 
@@ -44,8 +48,8 @@ class RWTester {
     }
   }
 
-  void reset([int startingBalance = 0]) {
-    _numWrites = startingBalance;
+  void reset() {
+    _operationSequences.clear();
     if (debugOutput) {
       _startTime = DateTime.now();
       _debugPrint();
@@ -54,70 +58,45 @@ class RWTester {
 
   /// Waits [startDelay] and then invokes critical section with mutex.
   ///
-  Future<void> writing(int startDelay, int dangerWindow) async {
+  /// Writes to [_operationSequences]. If the readwrite locks are respected
+  /// then the final state of the list will be in ascending order.
+  Future<void> writing(int startDelay, int sequence, int endDelay) async {
     await sleep(Duration(milliseconds: startDelay));
 
     await mutex.acquireWrite();
     try {
-      await _writingCriticalSection(dangerWindow);
+      final op = ++_operation;
+      _debugPrint('[$op] write start: <- $_operationSequences');
+      final tmp = _operationSequences;
+      expect(mutex.isWriteLocked, isTrue);
+      expect(_operationSequences, orderedEquals(tmp));
+      // Add the position of operation to the list of operations.
+      _operationSequences.add(sequence); // add position to list
+      expect(mutex.isWriteLocked, isTrue);
+      await sleep(Duration(milliseconds: endDelay));
+      _debugPrint('[$op] write finish: -> $_operationSequences');
     } finally {
       mutex.release();
     }
-  }
-
-  /// Critical section of adding an amount to the balance.
-  ///
-  /// Reads the balance, then sleeps for [dangerWindow] milliseconds, before
-  /// saving the new balance. If not protected, another invocation of this
-  /// method while it is sleeping will read the balance before it is updated.
-  /// The one that saves its balance last will overwrite the earlier saved
-  /// balances (effectively those other deposits will be lost).
-  ///
-  Future _writingCriticalSection(int dangerWindow) async {
-    final op = ++_operation;
-
-    _debugPrint('[$op] write start: <- $_numWrites');
-
-    final tmp = _numWrites;
-    expect(mutex.isWriteLocked, isTrue);
-    await sleep(Duration(milliseconds: dangerWindow));
-    expect(mutex.isWriteLocked, isTrue);
-    expect(_numWrites, equals(tmp));
-
-    _numWrites = tmp + 1; // change the balance
-
-    _debugPrint('[$op] write finish: -> $_numWrites');
   }
 
   /// Waits [startDelay] and then invokes critical section with mutex.
   ///
-  /// This method demonstrates the use of a read lock on the mutex.
   ///
-  Future<void> reading(int startDelay, int dangerWindow) async {
+  Future<void> reading(int startDelay, int sequence, int endDelay) async {
     await sleep(Duration(milliseconds: startDelay));
 
     await mutex.acquireRead();
     try {
-      return await _readingCriticalSection(dangerWindow);
+      final op = ++_operation;
+      _debugPrint('[$op] read start: <- $_operationSequences');
+      expect(mutex.isReadLocked, isTrue);
+      _operationSequences.add(sequence); // add position to list
+      await sleep(Duration(milliseconds: endDelay));
+      _debugPrint('[$op] read finish: <- $_operationSequences');
     } finally {
       mutex.release();
     }
-  }
-
-  /// Critical section that must be done in a read lock.
-  ///
-  Future<void> _readingCriticalSection(int dangerWindow) async {
-    final op = ++_operation;
-
-    _debugPrint('[$op] read start: <- $_numWrites');
-
-    final tmp = _numWrites;
-    expect(mutex.isReadLocked, isTrue);
-    await sleep(Duration(milliseconds: dangerWindow));
-    expect(mutex.isReadLocked, isTrue);
-    expect(_numWrites, equals(tmp));
-
-    _debugPrint('[$op] read finish: <- $_numWrites');
   }
 }
 
@@ -126,81 +105,95 @@ class RWTester {
 void main() {
   final account = RWTester();
 
-  test('multiple read locks', () async {
-    const delay = 200; // milliseconds
-    const overhead = 50; // milliseconds
+  setUp(() {
     account.reset();
-    final startTime = DateTime.now();
+  });
+
+  test('multiple read locks', () async {
     await Future.wait([
-      account.reading(0, delay),
-      account.reading(0, delay),
-      account.reading(0, delay),
-      account.reading(0, delay),
-      account.reading(0, delay),
-      account.reading(0, delay),
-      account.reading(0, delay),
-      account.reading(0, delay),
-      account.reading(0, delay),
-      account.reading(0, delay),
+      account.reading(0, 1, 1000),
+      account.reading(0, 2, 900),
+      account.reading(0, 3, 800),
+      account.reading(0, 4, 700),
+      account.reading(0, 5, 600),
+      account.reading(0, 6, 500),
+      account.reading(0, 7, 400),
+      account.reading(0, 8, 300),
+      account.reading(0, 9, 200),
+      account.reading(0, 10, 100),
     ]);
-    final finishTime = DateTime.now();
-    final ms = finishTime.difference(startTime).inMilliseconds;
-    expect(ms, greaterThan(delay));
-    expect(ms, lessThan(delay + overhead));
-    expect(account.numWrites, equals(0));
+    // The first future acquires the lock first and waits the longest to give it
+    // up. This should however not block any of the other read operations
+    // as such the reads should finish in ascending orders.
+    expect(
+      account.operationSequences,
+      orderedEquals([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]),
+    );
   });
 
   test('multiple write locks', () async {
-    const delay = 200; // milliseconds
-    const overhead = 100; // milliseconds
-    account.reset();
-    final startTime = DateTime.now();
     await Future.wait([
-      account.writing(0, delay),
-      account.writing(0, delay),
-      account.writing(0, delay),
-      account.writing(0, delay),
-      account.writing(0, delay),
-      account.writing(0, delay),
-      account.writing(0, delay),
-      account.writing(0, delay),
-      account.writing(0, delay),
-      account.writing(0, delay),
+      account.writing(0, 1, 100),
+      account.writing(0, 2, 100),
+      account.writing(0, 3, 100),
     ]);
-    final finishTime = DateTime.now();
-    final ms = finishTime.difference(startTime).inMilliseconds;
-    expect(ms, greaterThan(delay * 10));
-    expect(ms, lessThan(delay * 10 + overhead));
-    expect(account.numWrites, equals(10));
+    // The first future writes first and holds the lock until 100 ms
+    // Even though the second future starts execution, the lock cannot be
+    // acquired until it is released by the first future.
+    // Therefore the sequence of operations will be in ascending order
+    // of the futures.
+    expect(
+      account.operationSequences,
+      orderedEquals([1, 2, 3]),
+    );
   });
 
-  test('mixture of read and write locks', () async {
-    const delay = 200; // milliseconds
-    const overhead = 100; // milliseconds
-    account.reset();
-    final startTime = DateTime.now();
+  test('acquireWrite() before acquireRead()', () async {
+    final mutex = ReadWriteMutex();
+    await mutex.acquireWrite();
+    expect(mutex.isReadLocked, equals(false));
+    expect(mutex.isWriteLocked, equals(true));
+
+    // Since there is a write lock existing, a read lock cannot be acquired.
+    final readLock = mutex.acquireRead().timeout(Duration(milliseconds: 100));
+    expect(
+      () async => (await readLock),
+      throwsA(isA<TimeoutException>()),
+    );
+  });
+
+  test('acquireRead() before acquireWrite()', () async {
+    final mutex = ReadWriteMutex();
+    await mutex.acquireRead();
+    expect(mutex.isReadLocked, equals(true));
+    expect(mutex.isWriteLocked, equals(false));
+
+    // Since there is a read lock existing, a write lock cannot be acquired.
+    final writeLock = mutex.acquireWrite().timeout(Duration(milliseconds: 100));
+    expect(
+      () async => await writeLock,
+      throwsA(isA<TimeoutException>()),
+    );
+  });
+
+  test('mixture of read write locks execution order', () async {
     await Future.wait([
-      account.writing(0, 1000),
-      account.reading(100, delay),
-      account.reading(110, delay),
-      account.reading(120, delay),
-      account.writing(130, delay),
-      account.writing(140, delay),
-      account.writing(150, delay),
-      account.reading(160, delay),
-      account.reading(170, delay),
-      account.reading(180, delay),
-      account.writing(190, delay),
-      account.writing(200, delay),
-      account.writing(210, delay),
-      account.reading(220, delay),
-      account.reading(230, delay),
-      account.reading(240, delay),
+      account.writing(10, 1, 100),
+      account.writing(20, 2, 100),
+      account.reading(0, 3, 100),
+      account.reading(20, 4, 100),
+      account.reading(30, 5, 100),
     ]);
-    final finishTime = DateTime.now();
-    final ms = finishTime.difference(startTime).inMilliseconds;
-    expect(ms, greaterThan(1000 + delay * 9));
-    expect(ms, lessThan(1000 + delay * 9 + overhead));
-    expect(account.numWrites, equals(7));
+
+    // #3 Read is scheduled first, startDelay = 0, holds lock for 100 ms
+    // #4 and #5 are reads scheduled after #3
+    // Since multiple read locks are allowed
+    // even though #1 and and #2 write operations are scheduled earlier
+    // they wait for all read locks to released.
+    // This effectively serializes the writes after reads.
+    expect(
+      account.operationSequences,
+      orderedEquals([3, 4, 5, 1, 2]),
+    );
   });
 }
