@@ -32,6 +32,36 @@ class _ReadWriteMutexRequest {
 /// Multiple read locks can be simultaneously acquired, but at most only
 /// one write lock can be acquired at any one time.
 ///
+/// **Protecting critical code**
+///
+/// The [protectWrite] and [protectRead] are convenience methods for acquiring
+/// locks and releasing them. Using them will ensure the locks are always
+/// released after use.
+///
+/// Create the mutex:
+///
+///     m = new ReadWriteMutex();
+///
+/// Code protected by a write lock:
+///
+///     await m.protectWrite(() {
+///        // critical write section
+///     });
+///
+/// Other code can be protected by a read lock:
+///
+///     await m.protectRead(() {
+///         // critical read section
+///     });
+///
+///
+/// **Explicitly managing locks**
+///
+/// Alternatively, the locks can be explicitly acquired and managed. In this
+/// situation, the program is responsible for releasing the locks after they
+/// have been used. Failure to release the lock will prevent other code for
+/// ever acquiring a lock.
+///
 /// Create the mutex:
 ///
 ///     m = new ReadWriteMutex();
@@ -62,31 +92,41 @@ class _ReadWriteMutexRequest {
 /// order. This ensures there will not be any lock starvation, which can
 /// happen if some locks are prioritised over others. Submit a feature
 /// request issue, if there is a need for another scheduling algorithm.
-///
+
 class ReadWriteMutex {
   final _waiting = <_ReadWriteMutexRequest>[];
 
   int _state = 0; // -1 = write lock, +ve = number of read locks; 0 = no lock
 
-  /// Indicates if a lock (read or write) has currently been acquired.
+  /// Indicates if a lock (read or write) has been acquired and not released.
   bool get isLocked => (_state != 0);
 
-  /// Indicates if a write lock has currently been acquired.
+  /// Indicates if a write lock has been acquired and not released.
   bool get isWriteLocked => (_state == -1);
 
-  /// Indicates if a read lock has currently been acquired.
+  /// Indicates if one or more read locks has been acquired and not released.
   bool get isReadLocked => (0 < _state);
 
   /// Acquire a read lock
   ///
   /// Returns a future that will be completed when the lock has been acquired.
   ///
+  /// Consider using the convenience method [protectRead], otherwise the caller
+  /// is responsible for making sure the lock is released after it is no longer
+  /// needed. Failure to release the lock means no other code can acquire a
+  /// write lock.
+
   Future acquireRead() => _acquire(true);
 
   /// Acquire a write lock
   ///
   /// Returns a future that will be completed when the lock has been acquired.
   ///
+  /// Consider using the convenience method [protectWrite], otherwise the caller
+  /// is responsible for making sure the lock is released after it is no longer
+  /// needed. Failure to release the lock means no other code can acquire the
+  /// lock (neither a read lock or a write lock).
+
   Future acquireWrite() => _acquire(false);
 
   /// Release a lock.
@@ -115,6 +155,42 @@ class ReadWriteMutex {
       } else {
         break; // no more can be acquired
       }
+    }
+  }
+
+  /// Convenience method for protecting a function with a read lock.
+  ///
+  /// A read lock is acquired before invoking the [criticalSection] function.
+  /// If the critical section returns a Future, it waits for it to be completed
+  /// before the read lock is released. The read lock is always released
+  /// (even if the critical section throws an exception).
+  ///
+  /// Returns a Future that completes after the read lock is released.
+
+  Future<void> protectRead(Function criticalSection) async {
+    await acquireRead();
+    try {
+      await criticalSection();
+    } finally {
+      release();
+    }
+  }
+
+  /// Convenience method for protecting a function with a write lock.
+  ///
+  /// A write lock is acquired before invoking the [criticalSection] function.
+  /// If the critical section returns a Future, it waits for it to be completed
+  /// before the write lock is released. The write lock is always released
+  /// (even if the critical section throws an exception).
+  ///
+  /// Returns a Future that completes after the write lock is released.
+
+  Future<void> protectWrite(Function criticalSection) async {
+    await acquireWrite();
+    try {
+      await criticalSection();
+    } finally {
+      release();
     }
   }
 

@@ -13,12 +13,13 @@ can still occur when asynchronous operations are used inside
 critical sections. For example,
 
     x = 42;
-    synchronousOperations();
-    assert(x == 42); // x will not have changed
+    synchronousOperations(); // this does not modify x
+    assert(x == 42); // x will NOT have changed
     
-    y = 42;
-    await asynchronousOperations();
-    assert(y == 42 || y != 42); // Warning: y might have been changed
+    y = 42; // a variable that other asynchronous code can modify
+    await asynchronousOperations(); // this does NOT modify y, but...
+    // There is NO GUARANTEE other async code didn't run and change it!
+    assert(y == 42 || y != 42); // WARNING: y might have changed
 
 An example is when Dart is used to implement a server-side Web server
 that updates a database (assuming database transactions are not being
@@ -43,15 +44,27 @@ lock will be blocked until the lock has been released.
 
     m = Mutex();
 
-Acquiring the lock:
+Acquiring the lock before running the critical section of code,
+and then releasing the lock.
 
     await m.acquire();
+    // No other lock can be acquired until the lock is released
+
     try {
-      // critical section
+      // critical section with asynchronous code
+	  await ...
     }
     finally {
       m.release();
     }
+
+The following code uses the _protect_ convenience method to do the
+same thing as the above code. Use the convenence method whenever
+possible, since it ensures the lock will always be released.
+
+    await m.protect(() async {
+	  // critical section
+	});
 
 ## Read-write mutex
 
@@ -76,9 +89,11 @@ multiple-reader mutex, or a reentrant lock.
  Acquiring a write lock:
  
     await m.acquireWrite();
+    // No other locks (read or write) can be acquired until released
+	
     try {
-      // critical write section
-      // No other locks (read or write) can be acquired.
+      // critical write section with asynchronous code
+	  await ...
     }
     finally {
       m.release();
@@ -87,14 +102,44 @@ multiple-reader mutex, or a reentrant lock.
 Acquiring a read lock:
 
     await m.acquireRead();
+    // No write lock can be acquired until all read locks are released,
+	// but additional read locks can be acquired.
+	
     try {
-      // critical read section
-      // No write locks can be acquired, but other read locks can be acquired.
+      // critical read section with asynchronous code
+	  await ...
     }
     finally {
       m.release();
     }
 
+The following code uses the _protectWrite_ and _protectRead_
+convenience methods to do the same thing as the above code. Use the
+convenence method whenever possible, since it ensures the lock will
+always be released.
+
+    await m.protectWrite(() async {
+	  // critical write section
+	});
+
+    await m.protectRead(() async {
+	  // critical read section
+	});
+
+
+## When mutual exclusion is not needed
+
+The critical section should always contain some asynchronous code.  If
+the critical section only contains synchronous code, there is no need
+to put it in a critical section. In Dart, synchronous code cannot be
+interrupted, so there is no need to protect it using mutual exclusion.
+
+Also, if the critical section does not involve data or shared
+resources that can be accessed by other asynchronous code, it also
+does not need to be protected.  For example, if it only uses local
+variables that other asynchronous code won't have access to: while the
+other asynchronous code could run, it won't be able to make unexpected
+changes to the local variables it can't access.
 
 ## Features and bugs
 

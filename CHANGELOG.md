@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.0
+
+- Added protect, protectRead and protectWrite convenience methods.
+- Improved tests to not depend on timing.
+
 ## 1.0.3
 
 - Added an example.

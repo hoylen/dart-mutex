@@ -54,8 +54,7 @@ Future<void> safeUpdate(int id, int depositAmount) async {
 
   // Acquire the mutex before running the critical section of code
 
-  await m.acquire();
-  try {
+  await m.protect(() async {
     // critical section
 
     // This is the same as the unsafe update. But since it is performed only
@@ -69,9 +68,7 @@ Future<void> safeUpdate(int id, int depositAmount) async {
     // end of critical section
 
     print('  [$id] added $depositAmount to $oldBalance -> $balance');
-  } finally {
-    m.release();
-  }
+  });
 }
 
 //----------------------------------------------------------------

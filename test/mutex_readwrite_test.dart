@@ -63,8 +63,7 @@ class RWTester {
   Future<void> writing(int startDelay, int sequence, int endDelay) async {
     await sleep(Duration(milliseconds: startDelay));
 
-    await mutex.acquireWrite();
-    try {
+    await mutex.protectWrite(() async {
       final op = ++_operation;
       _debugPrint('[$op] write start: <- $_operationSequences');
       final tmp = _operationSequences;
@@ -75,9 +74,7 @@ class RWTester {
       expect(mutex.isWriteLocked, isTrue);
       await sleep(Duration(milliseconds: endDelay));
       _debugPrint('[$op] write finish: -> $_operationSequences');
-    } finally {
-      mutex.release();
-    }
+    });
   }
 
   /// Waits [startDelay] and then invokes critical section with mutex.
@@ -86,17 +83,14 @@ class RWTester {
   Future<void> reading(int startDelay, int sequence, int endDelay) async {
     await sleep(Duration(milliseconds: startDelay));
 
-    await mutex.acquireRead();
-    try {
+    await mutex.protectRead(() async {
       final op = ++_operation;
       _debugPrint('[$op] read start: <- $_operationSequences');
       expect(mutex.isReadLocked, isTrue);
       _operationSequences.add(sequence); // add position to list
       await sleep(Duration(milliseconds: endDelay));
       _debugPrint('[$op] read finish: <- $_operationSequences');
-    } finally {
-      mutex.release();
-    }
+    });
   }
 }
 
@@ -127,7 +121,7 @@ void main() {
     // as such the reads should finish in ascending orders.
     expect(
       account.operationSequences,
-      orderedEquals([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]),
+      orderedEquals(<int>[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]),
     );
   });
 
@@ -144,18 +138,21 @@ void main() {
     // of the futures.
     expect(
       account.operationSequences,
-      orderedEquals([1, 2, 3]),
+      orderedEquals(<int>[1, 2, 3]),
     );
   });
 
   test('acquireWrite() before acquireRead()', () async {
+    const lockTimeout = const Duration(milliseconds: 100);
+
     final mutex = ReadWriteMutex();
+
     await mutex.acquireWrite();
     expect(mutex.isReadLocked, equals(false));
     expect(mutex.isWriteLocked, equals(true));
 
     // Since there is a write lock existing, a read lock cannot be acquired.
-    final readLock = mutex.acquireRead().timeout(Duration(milliseconds: 100));
+    final readLock = mutex.acquireRead().timeout(lockTimeout);
     expect(
       () async => (await readLock),
       throwsA(isA<TimeoutException>()),
@@ -163,13 +160,16 @@ void main() {
   });
 
   test('acquireRead() before acquireWrite()', () async {
+    const lockTimeout = const Duration(milliseconds: 100);
+
     final mutex = ReadWriteMutex();
+
     await mutex.acquireRead();
     expect(mutex.isReadLocked, equals(true));
     expect(mutex.isWriteLocked, equals(false));
 
     // Since there is a read lock existing, a write lock cannot be acquired.
-    final writeLock = mutex.acquireWrite().timeout(Duration(milliseconds: 100));
+    final writeLock = mutex.acquireWrite().timeout(lockTimeout);
     expect(
       () async => await writeLock,
       throwsA(isA<TimeoutException>()),
@@ -193,7 +193,65 @@ void main() {
     // This effectively serializes the writes after reads.
     expect(
       account.operationSequences,
-      orderedEquals([3, 4, 5, 1, 2]),
+      orderedEquals(<int>[3, 4, 5, 1, 2]),
     );
+  });
+
+  group('protectRead', () {
+    test('lock released on success', () async {
+      final m = ReadWriteMutex();
+
+      await m.protectRead(() {
+        // critical section
+        expect(m.isLocked, isTrue);
+      });
+      expect(m.isLocked, isFalse);
+    });
+
+    test('lock released on exception', () async {
+      final m = ReadWriteMutex();
+
+      try {
+        await m.protectRead(() {
+          // critical section
+          expect(m.isLocked, isTrue);
+          throw const FormatException('testing');
+        });
+        fail('exception in critical section was not propagated');
+      } on FormatException {
+        expect(m.isLocked, isFalse);
+      }
+
+      expect(m.isLocked, isFalse);
+    });
+  });
+
+  group('protectWrite', () {
+    test('lock released on success', () async {
+      final m = ReadWriteMutex();
+
+      await m.protectWrite(() {
+        // critical section
+        expect(m.isLocked, isTrue);
+      });
+      expect(m.isLocked, isFalse);
+    });
+
+    test('lock released on exception', () async {
+      final m = ReadWriteMutex();
+
+      try {
+        await m.protectWrite(() {
+          // critical section
+          expect(m.isLocked, isTrue);
+          throw const FormatException('testing');
+        });
+        fail('exception in critical section was not propagated');
+      } on FormatException {
+        expect(m.isLocked, isFalse);
+      }
+
+      expect(m.isLocked, isFalse);
+    });
   });
 }

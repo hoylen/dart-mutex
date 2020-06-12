@@ -189,4 +189,33 @@ void main() {
     ]);
     expect(account.balance, equals(10));
   });
+
+  group('protect', () {
+    test('lock released on success', () async {
+      final m = Mutex();
+
+      await m.protect(() {
+        // critical section
+        expect(m.isLocked, isTrue);
+      });
+      expect(m.isLocked, isFalse);
+    });
+
+    test('lock released on exception', () async {
+      final m = Mutex();
+
+      try {
+        await m.protect(() {
+          // critical section
+          expect(m.isLocked, isTrue);
+          throw const FormatException('testing');
+        });
+        fail('exception in critical section was not propagated');
+      } on FormatException {
+        expect(m.isLocked, isFalse);
+      }
+
+      expect(m.isLocked, isFalse);
+    });
+  });
 }
