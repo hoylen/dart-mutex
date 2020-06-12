@@ -174,9 +174,7 @@ void main() {
   test('multiple acquires are serialized', () async {
     // Demonstrate that sections running in a mutex are effectively serialized
     const delay = 200; // milliseconds
-    const overhead = 100; // milliseconds
     account.reset();
-    final startTime = DateTime.now();
     await Future.wait([
       account.depositWithMutex(1, 0, delay),
       account.depositWithMutex(1, 0, delay),
@@ -189,9 +187,6 @@ void main() {
       account.depositWithMutex(1, 0, delay),
       account.depositWithMutex(1, 0, delay),
     ]);
-    final finishTime = DateTime.now();
-    final ms = finishTime.difference(startTime).inMilliseconds;
-    expect(ms, greaterThan(delay * 10));
-    expect(ms, lessThan(delay * 10 + overhead));
+    expect(account.balance, equals(10));
   });
 }
