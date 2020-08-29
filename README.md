@@ -79,7 +79,7 @@ released. But attempts to acquire more _read locks_ will not be
 blocked. If there is a _write lock_, attempts to acquire any lock
 (read or write) will be blocked until that _write lock_ is released.
 
-A read-write mutex can also be describeed as a single-writer mutex,
+A read-write mutex can also be described as a single-writer mutex,
 multiple-reader mutex, or a reentrant lock.
 
     import 'package:mutex/mutex.dart';
