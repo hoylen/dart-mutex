@@ -7,9 +7,7 @@ import 'package:mutex/mutex.dart';
 /// During this time other code may execute, which could lead to race conditions
 /// if critical sections of code are not protected.
 ///
-Future sleep([Duration duration]) async {
-  assert(duration != null && duration is Duration);
-
+Future sleep(Duration duration) async {
   final completer = Completer<void>();
   Timer(duration, completer.complete);
 
@@ -35,9 +33,9 @@ class RWTester {
   /// Set to true to print out read/write to the balance during deposits
   static final bool debugOutput = false;
 
-  DateTime _startTime;
+  late DateTime _startTime;
 
-  void _debugPrint([String message]) {
+  void _debugPrint([String? message]) {
     if (debugOutput) {
       if (message != null) {
         final t = DateTime.now().difference(_startTime).inMilliseconds;

@@ -7,9 +7,7 @@ import 'package:mutex/mutex.dart';
 /// During this time other code may execute, which could lead to race conditions
 /// if critical sections of code are not protected.
 ///
-Future sleep([Duration duration]) async {
-  assert(duration != null && duration is Duration);
-
+Future sleep(Duration duration) async {
   final completer = Completer<void>();
   Timer(duration, completer.complete);
 
@@ -36,7 +34,7 @@ class Account {
   /// Time used for calculating time offsets in debug messages.
   DateTime _startTime = DateTime.now();
 
-  void _debugPrint([String message]) {
+  void _debugPrint([String? message]) {
     if (debugOutput) {
       if (message != null) {
         final t = DateTime.now().difference(_startTime).inMilliseconds;

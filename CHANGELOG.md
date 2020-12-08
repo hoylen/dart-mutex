@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.0-nullsafety.0
+
+- Pre-release version: updated library to null safety (Non-nullable by default).
+
 ## 1.1.0
 
 - Added protect, protectRead and protectWrite convenience methods.

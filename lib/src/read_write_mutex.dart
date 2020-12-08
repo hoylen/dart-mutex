@@ -10,7 +10,7 @@ class _ReadWriteMutexRequest {
   ///
   /// The [isRead] indicates if this is a read lock (true) or a write lock (false).
 
-  _ReadWriteMutexRequest({this.isRead});
+  _ReadWriteMutexRequest({required this.isRead});
 
   /// Indicates if this is a read or write lock.
 
