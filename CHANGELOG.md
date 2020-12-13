@@ -3,6 +3,7 @@
 ## 2.0.0-nullsafety.0
 
 - Pre-release version: updated library to null safety (Non-nullable by default).
+- Removed support for Dart 1.x.
 
 ## 1.1.0
 

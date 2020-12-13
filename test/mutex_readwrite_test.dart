@@ -2,23 +2,9 @@ import 'dart:async';
 import 'package:test/test.dart';
 import 'package:mutex/mutex.dart';
 
-/// Wait for duration.
-///
-/// During this time other code may execute, which could lead to race conditions
-/// if critical sections of code are not protected.
-///
-Future sleep(Duration duration) async {
-  final completer = Completer<void>();
-  Timer(duration, completer.complete);
-
-  return completer.future;
-}
+//################################################################
 
 class RWTester {
-  RWTester() {
-    _startTime = DateTime.now();
-  }
-
   int _operation = 0;
   final _operationSequences = <int>[];
 
@@ -33,25 +19,18 @@ class RWTester {
   /// Set to true to print out read/write to the balance during deposits
   static final bool debugOutput = false;
 
-  late DateTime _startTime;
+  DateTime _startTime = DateTime.now();
 
-  void _debugPrint([String? message]) {
+  void _debugPrint(String message) {
     if (debugOutput) {
-      if (message != null) {
-        final t = DateTime.now().difference(_startTime).inMilliseconds;
-        print('$t: $message');
-      } else {
-        print('');
-      }
+      final t = DateTime.now().difference(_startTime).inMilliseconds;
+      print('$t: $message');
     }
   }
 
   void reset() {
     _operationSequences.clear();
-    if (debugOutput) {
-      _startTime = DateTime.now();
-      _debugPrint();
-    }
+    _startTime = DateTime.now();
   }
 
   /// Waits [startDelay] and then invokes critical section with mutex.
@@ -59,7 +38,7 @@ class RWTester {
   /// Writes to [_operationSequences]. If the readwrite locks are respected
   /// then the final state of the list will be in ascending order.
   Future<void> writing(int startDelay, int sequence, int endDelay) async {
-    await sleep(Duration(milliseconds: startDelay));
+    await Future<Null>.delayed(Duration(milliseconds: startDelay));
 
     await mutex.protectWrite(() async {
       final op = ++_operation;
@@ -70,7 +49,7 @@ class RWTester {
       // Add the position of operation to the list of operations.
       _operationSequences.add(sequence); // add position to list
       expect(mutex.isWriteLocked, isTrue);
-      await sleep(Duration(milliseconds: endDelay));
+      await Future<Null>.delayed(Duration(milliseconds: endDelay));
       _debugPrint('[$op] write finish: -> $_operationSequences');
     });
   }
@@ -79,27 +58,27 @@ class RWTester {
   ///
   ///
   Future<void> reading(int startDelay, int sequence, int endDelay) async {
-    await sleep(Duration(milliseconds: startDelay));
+    await Future<Null>.delayed(Duration(milliseconds: startDelay));
 
     await mutex.protectRead(() async {
       final op = ++_operation;
       _debugPrint('[$op] read start: <- $_operationSequences');
       expect(mutex.isReadLocked, isTrue);
       _operationSequences.add(sequence); // add position to list
-      await sleep(Duration(milliseconds: endDelay));
+      await Future<Null>.delayed(Duration(milliseconds: endDelay));
       _debugPrint('[$op] read finish: <- $_operationSequences');
     });
   }
 }
+
+//################################################################
 
 //----------------------------------------------------------------
 
 void main() {
   final account = RWTester();
 
-  setUp(() {
-    account.reset();
-  });
+  setUp(account.reset);
 
   test('multiple read locks', () async {
     await Future.wait([

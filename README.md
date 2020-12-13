@@ -40,31 +40,38 @@ A mutex guarantees at most only one lock can exist at any one time.
 If the lock has already been acquired, attempts to acquire another
 lock will be blocked until the lock has been released.
 
-    import 'package:mutex/mutex.dart';
+```dart
+import 'package:mutex/mutex.dart';
 
-    m = Mutex();
+...
+
+final m = Mutex();
+```
 
 Acquiring the lock before running the critical section of code,
 and then releasing the lock.
 
-    await m.acquire();
-    // No other lock can be acquired until the lock is released
+```dart
+await m.acquire();
+// No other lock can be acquired until the lock is released
 
-    try {
-      // critical section with asynchronous code
-	  await ...
-    }
-    finally {
-      m.release();
-    }
+try {
+  // critical section with asynchronous code
+  await ...
+} finally {
+  m.release();
+}
+```
 
 The following code uses the _protect_ convenience method to do the
 same thing as the above code. Use the convenence method whenever
 possible, since it ensures the lock will always be released.
 
-    await m.protect(() async {
-	  // critical section
-	});
+```dart
+await m.protect(() async {
+  // critical section
+});
+```
 
 ## Read-write mutex
 
@@ -82,11 +89,15 @@ blocked. If there is a _write lock_, attempts to acquire any lock
 A read-write mutex can also be described as a single-writer mutex,
 multiple-reader mutex, or a reentrant lock.
 
-    import 'package:mutex/mutex.dart';
+```dart
+import 'package:mutex/mutex.dart';
 
-    m = MutexReadWrite();
- 
- Acquiring a write lock:
+...
+
+final m = MutexReadWrite();
+```
+
+Acquiring a write lock:
  
     await m.acquireWrite();
     // No other locks (read or write) can be acquired until released
@@ -94,8 +105,7 @@ multiple-reader mutex, or a reentrant lock.
     try {
       // critical write section with asynchronous code
 	  await ...
-    }
-    finally {
+    } finally {
       m.release();
     }
 
@@ -108,8 +118,7 @@ Acquiring a read lock:
     try {
       // critical read section with asynchronous code
 	  await ...
-    }
-    finally {
+    } finally {
       m.release();
     }
 

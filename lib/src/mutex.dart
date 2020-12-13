@@ -8,7 +8,7 @@ part of mutex;
 ///
 /// Usage:
 ///
-///     m = new Mutex();
+///     m = Mutex();
 ///
 ///     await m.protect(() {
 ///       // critical section
@@ -19,7 +19,7 @@ part of mutex;
 /// have been used. Failure to release the lock will prevent other code for
 /// ever acquiring the lock.
 ///
-///     m = new Mutex();
+///     m = Mutex();
 ///
 ///     await m.acquire();
 ///     try {
@@ -50,7 +50,7 @@ class Mutex {
   /// Release a lock.
   ///
   /// Release a lock that has been acquired.
-  ///
+
   void release() => _rwMutex.release();
 
   /// Convenience method for protecting a function with a lock.

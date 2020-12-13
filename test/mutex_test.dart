@@ -2,18 +2,7 @@ import 'dart:async';
 import 'package:test/test.dart';
 import 'package:mutex/mutex.dart';
 
-/// Wait for duration.
-///
-/// During this time other code may execute, which could lead to race conditions
-/// if critical sections of code are not protected.
-///
-Future sleep(Duration duration) async {
-  final completer = Completer<void>();
-  Timer(duration, completer.complete);
-
-  return completer.future;
-}
-
+//################################################################
 /// Account simulating the classic "simultaneous update" concurrency problem.
 ///
 /// The deposit operation reads the balance, waits for a short time (where
@@ -34,30 +23,24 @@ class Account {
   /// Time used for calculating time offsets in debug messages.
   DateTime _startTime = DateTime.now();
 
-  void _debugPrint([String? message]) {
+  void _debugPrint(String message) {
     if (debugOutput) {
-      if (message != null) {
-        final t = DateTime.now().difference(_startTime).inMilliseconds;
-        print('$t: $message');
-      } else {
-        print('');
-      }
+      final t = DateTime.now().difference(_startTime).inMilliseconds;
+      print('$t: $message');
     }
   }
 
   void reset([int startingBalance = 0]) {
     _balance = startingBalance;
-    if (debugOutput) {
-      _startTime = DateTime.now();
-      _debugPrint();
-    }
+    _startTime = DateTime.now();
   }
 
   /// Waits [startDelay] and then invokes critical section without mutex.
   ///
   Future<void> depositUnsafe(
       int amount, int startDelay, int dangerWindow) async {
-    await sleep(Duration(milliseconds: startDelay));
+    await Future<Null>.delayed(Duration(milliseconds: startDelay));
+
     await _depositCriticalSection(amount, dangerWindow);
   }
 
@@ -65,7 +48,7 @@ class Account {
   ///
   Future<void> depositWithMutex(
       int amount, int startDelay, int dangerWindow) async {
-    await sleep(Duration(milliseconds: startDelay));
+    await Future<Null>.delayed(Duration(milliseconds: startDelay));
 
     await mutex.acquire();
     try {
@@ -91,12 +74,16 @@ class Account {
     _debugPrint('[$op] read balance: $_balance');
 
     final tmp = _balance;
-    await sleep(Duration(milliseconds: dangerWindow));
+
+    await Future<Null>.delayed(Duration(milliseconds: dangerWindow));
+
     _balance = tmp + amount;
 
     _debugPrint('[$op] write balance: $_balance (= $tmp + $amount)');
   }
 }
+
+//################################################################
 
 //----------------------------------------------------------------
 

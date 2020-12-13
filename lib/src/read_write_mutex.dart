@@ -1,14 +1,16 @@
 part of mutex;
 
-/// Represents a request for a lock.
+//################################################################
+/// Internal representation of a request for a lock.
 ///
 /// This is instantiated for each acquire and, if necessary, it is added
 /// to the waiting queue.
-///
+
 class _ReadWriteMutexRequest {
   /// Internal constructor.
   ///
-  /// The [isRead] indicates if this is a read lock (true) or a write lock (false).
+  /// The [isRead] indicates if this is a request for a read lock (true) or a
+  /// request for a write lock (false).
 
   _ReadWriteMutexRequest({required this.isRead});
 
@@ -18,15 +20,12 @@ class _ReadWriteMutexRequest {
 
   /// The job's completer.
   ///
-  /// This [Completer] will complete when the job has acquired a lock.
-  ///
-  /// This should be defined as Completer<void>, but void is not supported in
-  /// Dart 1 (it only appeared in Dart 2). A type must be defined, otherwise
-  /// the Dart 2 dartanalyzer complains.
+  /// This [Completer] will complete when the job has acquired the lock.
 
-  final Completer<int> completer = Completer<int>();
+  final Completer<void> completer = Completer<void>();
 }
 
+//################################################################
 /// Mutual exclusion that supports read and write locks.
 ///
 /// Multiple read locks can be simultaneously acquired, but at most only
@@ -40,7 +39,7 @@ class _ReadWriteMutexRequest {
 ///
 /// Create the mutex:
 ///
-///     m = new ReadWriteMutex();
+///     m = ReadWriteMutex();
 ///
 /// Code protected by a write lock:
 ///
@@ -64,7 +63,7 @@ class _ReadWriteMutexRequest {
 ///
 /// Create the mutex:
 ///
-///     m = new ReadWriteMutex();
+///     m = ReadWriteMutex();
 ///
 /// Some code can acquire a write lock:
 ///
@@ -72,8 +71,7 @@ class _ReadWriteMutexRequest {
 ///     try {
 ///       // critical write section
 ///       assert(m.isWriteLocked);
-///     }
-///     finally {
+///     } finally {
 ///       m.release();
 ///     }
 ///
@@ -83,8 +81,7 @@ class _ReadWriteMutexRequest {
 ///     try {
 ///       // critical read section
 ///       assert(m.isReadLocked);
-///     }
-///     finally {
+///     } finally {
 ///       m.release();
 ///     }
 ///
@@ -94,9 +91,19 @@ class _ReadWriteMutexRequest {
 /// request issue, if there is a need for another scheduling algorithm.
 
 class ReadWriteMutex {
+  //================================================================
+  // Members
+
+  /// List of requests waiting for a lock on this mutex.
+
   final _waiting = <_ReadWriteMutexRequest>[];
 
+  /// State of the mutex
+
   int _state = 0; // -1 = write lock, +ve = number of read locks; 0 = no lock
+
+  //================================================================
+  // Methods
 
   /// Indicates if a lock (read or write) has been acquired and not released.
   bool get isLocked => (_state != 0);
@@ -111,28 +118,41 @@ class ReadWriteMutex {
   ///
   /// Returns a future that will be completed when the lock has been acquired.
   ///
+  /// A read lock can not be acquired when there is a write lock on the mutex.
+  /// But it can be acquired if there are other read locks.
+  ///
   /// Consider using the convenience method [protectRead], otherwise the caller
   /// is responsible for making sure the lock is released after it is no longer
   /// needed. Failure to release the lock means no other code can acquire a
   /// write lock.
 
-  Future acquireRead() => _acquire(true);
+  Future acquireRead() => _acquire(isRead: true);
 
   /// Acquire a write lock
   ///
   /// Returns a future that will be completed when the lock has been acquired.
+  ///
+  /// A write lock can only be acquired when there are no other locks (neither
+  /// read locks nor write locks) on the mutex.
   ///
   /// Consider using the convenience method [protectWrite], otherwise the caller
   /// is responsible for making sure the lock is released after it is no longer
   /// needed. Failure to release the lock means no other code can acquire the
   /// lock (neither a read lock or a write lock).
 
-  Future acquireWrite() => _acquire(false);
+  Future acquireWrite() => _acquire(isRead: false);
 
   /// Release a lock.
   ///
-  /// Release a lock that has been acquired.
+  /// Release the lock that was previously acquired.
   ///
+  /// When the lock is released, locks waiting to be acquired can be acquired
+  /// depending on the type of lock waiting and if other locks have been
+  /// acquired.
+  ///
+  /// A [StateError] is thrown if the mutex does not currently have a lock on
+  /// it.
+
   void release() {
     if (_state == -1) {
       // Write lock released
@@ -143,7 +163,7 @@ class ReadWriteMutex {
     } else if (_state == 0) {
       throw StateError('no lock to release');
     } else {
-      assert(false);
+      assert(false, 'invalid state');
     }
 
     // Let all jobs that can now acquire a lock do so.
@@ -196,7 +216,12 @@ class ReadWriteMutex {
 
   /// Internal acquire method.
   ///
-  Future _acquire(bool isRead) {
+  /// Used to acquire a read lock (when [isRead] is true) or a write lock
+  /// (when [isRead] is false).
+  ///
+  /// Returns a Future that completes when the lock has been acquired.
+
+  Future<void> _acquire({required bool isRead}) {
     final newJob = _ReadWriteMutexRequest(isRead: isRead);
     if (!_jobAcquired(newJob)) {
       _waiting.add(newJob);
@@ -209,12 +234,16 @@ class ReadWriteMutex {
   /// If it can acquire the lock, the job's completer is completed, the
   /// state updated, and true is returned. If not, false is returned.
   ///
+  /// A job for a read lock can only be acquired if there are no other locks
+  /// or there are read lock(s). A job for a write lock can only be acquired
+  /// if there are no other locks.
+
   bool _jobAcquired(_ReadWriteMutexRequest job) {
     assert(-1 <= _state);
     if (_state == 0 || (0 < _state && job.isRead)) {
       // Can acquire
       _state = (job.isRead) ? (_state + 1) : -1;
-      job.completer.complete(0); // dummy value
+      job.completer.complete();
       return true;
     } else {
       return false;
