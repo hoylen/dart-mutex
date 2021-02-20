@@ -19,7 +19,7 @@ class RWTester {
   /// Set to true to print out read/write to the balance during deposits
   static final bool debugOutput = false;
 
-  DateTime _startTime = DateTime.now();
+  final DateTime _startTime = DateTime.now();
 
   void _debugPrint(String message) {
     if (debugOutput) {
@@ -30,7 +30,7 @@ class RWTester {
 
   void reset() {
     _operationSequences.clear();
-    _startTime = DateTime.now();
+    _debugPrint('reset');
   }
 
   /// Waits [startDelay] and then invokes critical section with mutex.

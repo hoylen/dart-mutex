@@ -21,7 +21,7 @@ class Account {
   static final bool debugOutput = false;
 
   /// Time used for calculating time offsets in debug messages.
-  DateTime _startTime = DateTime.now();
+  final DateTime _startTime = DateTime.now();
 
   void _debugPrint(String message) {
     if (debugOutput) {
@@ -32,7 +32,7 @@ class Account {
 
   void reset([int startingBalance = 0]) {
     _balance = startingBalance;
-    _startTime = DateTime.now();
+    _debugPrint('reset: balance = $_balance');
   }
 
   /// Waits [startDelay] and then invokes critical section without mutex.

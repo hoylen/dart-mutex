@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.0
+
+- Null safety release.
+
 ## 2.0.0-nullsafety.0
 
 - Pre-release version: updated library to null safety (Non-nullable by default).
