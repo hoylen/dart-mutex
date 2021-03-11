@@ -195,12 +195,30 @@ void main() {
           expect(m.isLocked, isTrue);
           throw const FormatException('testing');
         });
+        // ignore: dead_code
         fail('exception in critical section was not propagated');
       } on FormatException {
         expect(m.isLocked, isFalse);
       }
 
       expect(m.isLocked, isFalse);
+    });
+
+    test('value returned from critical section', () async {
+      final m = Mutex();
+
+      // explicit return type int
+      final value = await m.protect<int>(() => 35);
+      expect(value, 35);
+
+      // explicit return type String
+      final word = await m.protect<String>(() => '42');
+      expect(word, '42');
+
+      // inferred return type String
+      final data = await m.protect(() => '42');
+      expect(data, isA<String>());
+      expect(data.length, 2);
     });
   });
 }

@@ -60,12 +60,15 @@ class Mutex {
   /// before the lock is released. The lock is always released
   /// (even if the critical section throws an exception).
   ///
-  /// Returns a Future that completes after the lock is released.
-
-  Future<void> protect(Function criticalSection) async {
+  /// Returns a Future that completes with the value returned by [criticalSection]
+  /// after the lock is released. The type parameter [T] is the return type of the
+  /// critical section function.
+  /// Often this does not need to be given as it can be inferred from the critical
+  /// section's return type
+  Future<T> protect<T>(T criticalSection()) async {
     await acquire();
     try {
-      await criticalSection();
+      return await criticalSection();
     } finally {
       release();
     }
