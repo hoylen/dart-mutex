@@ -94,7 +94,7 @@ import 'package:mutex/mutex.dart';
 
 ...
 
-final m = MutexReadWrite();
+final m = ReadWriteMutex();
 ```
 
 Acquiring a write lock:
