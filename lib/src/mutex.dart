@@ -65,7 +65,7 @@ class Mutex {
   /// critical section function.
   /// Often this does not need to be given as it can be inferred from the critical
   /// section's return type
-  Future<T> protect<T>(T criticalSection()) async {
+  Future<T> protect<T>(Future<T> criticalSection()) async {
     await acquire();
     try {
       return await criticalSection();
