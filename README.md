@@ -75,8 +75,8 @@ await m.protect(() async {
 });
 ```
 
-If the critial section returns a Future, the _protect_ convenience
-method will return a Future to the value of that Future.
+If the critial section returns a Future to a value, the _protect_
+convenience method will return a Future to that value.
 
 ```dart
 final result = await m.protect<int>(() async {
@@ -153,8 +153,8 @@ await m.protectRead(() async {
 });
 ```
 
-If the critial section returns a Future, these convenience methods will
-return a Future to the value of that Future.
+If the critial section returns a Future to a value, these convenience
+methods will return a Future to that value.
 
 ```dart
 final result1 await m.protectWrite<String>(() async {
