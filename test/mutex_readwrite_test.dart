@@ -175,7 +175,7 @@ void main() {
   });
 
   group('protectRead', () {
-    test('lock released on success', () async {
+    test('lock obtained and released on success', () async {
       final m = ReadWriteMutex();
 
       await m.protectRead(() async {
@@ -185,19 +185,146 @@ void main() {
       expect(m.isLocked, isFalse);
     });
 
-    test('lock released on exception', () async {
+    test('value returned from critical section', () async {
+      // These are the normal scenario of the critical section running
+      // successfully. It tests different return types from the
+      // critical section.
+
+      final m = ReadWriteMutex();
+
+      // returns Future<void>
+      await m.protectRead<void>(() async {});
+
+      // returns Future<int>
+      final number = await m.protectRead<int>(() async => 42);
+      expect(number, equals(42));
+
+      // returns Future<int?> completes with value
+      final optionalNumber = await m.protectRead<int?>(() async => 1024);
+      expect(optionalNumber, equals(1024));
+
+      // returns Future<int?> completes with null
+      final optionalNumberNull = await m.protectRead<int?>(() async => null);
+      expect(optionalNumberNull, isNull);
+
+      // returns Future<String>
+      final word = await m.protectRead<String>(() async => 'foobar');
+      expect(word, equals('foobar'));
+
+      // returns Future<String?> completes with value
+      final optionalWord = await m.protectRead<String?>(() async => 'baz');
+      expect(optionalWord, equals('baz'));
+
+      // returns Future<String?> completes with null
+      final optionalWordNull = await m.protectRead<String?>(() async => null);
+      expect(optionalWordNull, isNull);
+
+      expect(m.isLocked, isFalse);
+    });
+
+    test('exception in synchronous code', () async {
+      // Tests what happens when an exception is raised in the **synchronous**
+      // part of the critical section.
+      //
+      // Locks are correctly managed: the lock is obtained before executing
+      // the critical section, and is released when the exception is thrown
+      // by the _protect_ method.
+      //
+      // The exception is raised when waiting for the Future returned by
+      // _protect_ to complete. Even though the exception is synchronously
+      // raised by the critical section, it won't be thrown when _protect_
+      // is invoked. The _protect_ method always successfully returns a
+      // _Future_.
+
+      Future<int> criticalSection() {
+        final c = Completer<int>()..complete(42);
+
+        // synchronous exception
+        throw const FormatException('synchronous exception');
+        // ignore: dead_code
+        return c.future;
+      }
+
+      // Check the criticalSection behaves as expected for the test
+
+      try {
+        // ignore: unused_local_variable
+        final resultFuture = criticalSection();
+        fail('critical section did not throw synchronous exception');
+      } on FormatException {
+        // expected: invoking the criticalSection results in the exception
+      }
+
       final m = ReadWriteMutex();
 
       try {
-        await m.protectRead(() async {
-          // critical section
-          expect(m.isLocked, isTrue);
-          throw const FormatException('testing');
-        });
-        // ignore: dead_code
-        fail('exception in critical section was not propagated');
-      } on FormatException {
+        // Invoke protect to get the Future (this should succeed)
+        final resultFuture = m.protectRead<int>(criticalSection);
+        expect(resultFuture, isA<Future>());
+
+        // Wait for the Future (this should fail)
+        final result = await resultFuture;
+        expect(result, isNotNull);
+        fail('exception not thrown');
+      } on FormatException catch (e) {
         expect(m.isLocked, isFalse);
+        expect(e.message, equals('synchronous exception'));
+      }
+
+      expect(m.isLocked, isFalse);
+    });
+
+    test('exception in asynchronous code', () async {
+      // Tests what happens when an exception is raised in the **asynchronous**
+      // part of the critical section.
+      //
+      // Locks are correctly managed: the lock is obtained before executing
+      // the critical section, and is released when the exception is thrown
+      // by the _protect_ method.
+      //
+      // The exception is raised when waiting for the Future returned by
+      // _protect_ to complete.
+
+      Future<int> criticalSection() async {
+        final c = Completer<int>()..complete(42);
+
+        await Future.delayed(const Duration(seconds: 1), () {});
+
+        // asynchronous exception (since it must wait for the above line)
+        throw const FormatException('asynchronous exception');
+        // ignore: dead_code
+        return c.future;
+      }
+
+      // Check the criticalSection behaves as expected for the test
+
+      final resultFuture = criticalSection();
+      expect(resultFuture, isA<Future>());
+      // invoking the criticalSection does not result in the exception
+      try {
+        await resultFuture;
+        fail('critical section did not throw asynchronous exception');
+      } on FormatException {
+        // expected: exception happens on the await
+      }
+
+      final m = ReadWriteMutex();
+
+      try {
+        // Invoke protect to get the Future (this should succeed)
+        final resultFuture = m.protectRead<int>(criticalSection);
+        expect(resultFuture, isA<Future>());
+
+        // Even though the criticalSection throws the exception in synchronous
+        // code, protect causes it to become an asynchronous exception.
+
+        // Wait for the Future (this should fail)
+        final result = await resultFuture;
+        expect(result, isNotNull);
+        fail('exception not thrown');
+      } on FormatException catch (e) {
+        expect(m.isLocked, isFalse);
+        expect(e.message, equals('asynchronous exception'));
       }
 
       expect(m.isLocked, isFalse);
@@ -205,7 +332,7 @@ void main() {
   });
 
   group('protectWrite', () {
-    test('lock released on success', () async {
+    test('lock obtained and released on success', () async {
       final m = ReadWriteMutex();
 
       await m.protectWrite(() async {
@@ -215,19 +342,146 @@ void main() {
       expect(m.isLocked, isFalse);
     });
 
-    test('lock released on exception', () async {
+    test('value returned from critical section', () async {
+      // These are the normal scenario of the critical section running
+      // successfully. It tests different return types from the
+      // critical section.
+
+      final m = ReadWriteMutex();
+
+      // returns Future<void>
+      await m.protectWrite<void>(() async {});
+
+      // returns Future<int>
+      final number = await m.protectWrite<int>(() async => 42);
+      expect(number, equals(42));
+
+      // returns Future<int?> completes with value
+      final optionalNumber = await m.protectWrite<int?>(() async => 1024);
+      expect(optionalNumber, equals(1024));
+
+      // returns Future<int?> completes with null
+      final optionalNumberNull = await m.protectWrite<int?>(() async => null);
+      expect(optionalNumberNull, isNull);
+
+      // returns Future<String>
+      final word = await m.protectWrite<String>(() async => 'foobar');
+      expect(word, equals('foobar'));
+
+      // returns Future<String?> completes with value
+      final optionalWord = await m.protectWrite<String?>(() async => 'baz');
+      expect(optionalWord, equals('baz'));
+
+      // returns Future<String?> completes with null
+      final optionalWordNull = await m.protectWrite<String?>(() async => null);
+      expect(optionalWordNull, isNull);
+
+      expect(m.isLocked, isFalse);
+    });
+
+    test('exception in synchronous code', () async {
+      // Tests what happens when an exception is raised in the **synchronous**
+      // part of the critical section.
+      //
+      // Locks are correctly managed: the lock is obtained before executing
+      // the critical section, and is released when the exception is thrown
+      // by the _protect_ method.
+      //
+      // The exception is raised when waiting for the Future returned by
+      // _protect_ to complete. Even though the exception is synchronously
+      // raised by the critical section, it won't be thrown when _protect_
+      // is invoked. The _protect_ method always successfully returns a
+      // _Future_.
+
+      Future<int> criticalSection() {
+        final c = Completer<int>()..complete(42);
+
+        // synchronous exception
+        throw const FormatException('synchronous exception');
+        // ignore: dead_code
+        return c.future;
+      }
+
+      // Check the criticalSection behaves as expected for the test
+
+      try {
+        // ignore: unused_local_variable
+        final resultFuture = criticalSection();
+        fail('critical section did not throw synchronous exception');
+      } on FormatException {
+        // expected: invoking the criticalSection results in the exception
+      }
+
       final m = ReadWriteMutex();
 
       try {
-        await m.protectWrite(() async {
-          // critical section
-          expect(m.isLocked, isTrue);
-          throw const FormatException('testing');
-        });
-        // ignore: dead_code
-        fail('exception in critical section was not propagated');
-      } on FormatException {
+        // Invoke protect to get the Future (this should succeed)
+        final resultFuture = m.protectWrite<int>(criticalSection);
+        expect(resultFuture, isA<Future>());
+
+        // Wait for the Future (this should fail)
+        final result = await resultFuture;
+        expect(result, isNotNull);
+        fail('exception not thrown');
+      } on FormatException catch (e) {
         expect(m.isLocked, isFalse);
+        expect(e.message, equals('synchronous exception'));
+      }
+
+      expect(m.isLocked, isFalse);
+    });
+
+    test('exception in asynchronous code', () async {
+      // Tests what happens when an exception is raised in the **asynchronous**
+      // part of the critical section.
+      //
+      // Locks are correctly managed: the lock is obtained before executing
+      // the critical section, and is released when the exception is thrown
+      // by the _protect_ method.
+      //
+      // The exception is raised when waiting for the Future returned by
+      // _protect_ to complete.
+
+      Future<int> criticalSection() async {
+        final c = Completer<int>()..complete(42);
+
+        await Future.delayed(const Duration(seconds: 1), () {});
+
+        // asynchronous exception (since it must wait for the above line)
+        throw const FormatException('asynchronous exception');
+        // ignore: dead_code
+        return c.future;
+      }
+
+      // Check the criticalSection behaves as expected for the test
+
+      final resultFuture = criticalSection();
+      expect(resultFuture, isA<Future>());
+      // invoking the criticalSection does not result in the exception
+      try {
+        await resultFuture;
+        fail('critical section did not throw asynchronous exception');
+      } on FormatException {
+        // expected: exception happens on the await
+      }
+
+      final m = ReadWriteMutex();
+
+      try {
+        // Invoke protect to get the Future (this should succeed)
+        final resultFuture = m.protectWrite<int>(criticalSection);
+        expect(resultFuture, isA<Future>());
+
+        // Even though the criticalSection throws the exception in synchronous
+        // code, protect causes it to become an asynchronous exception.
+
+        // Wait for the Future (this should fail)
+        final result = await resultFuture;
+        expect(result, isNotNull);
+        fail('exception not thrown');
+      } on FormatException catch (e) {
+        expect(m.isLocked, isFalse);
+        expect(e.message, equals('asynchronous exception'));
       }
 
       expect(m.isLocked, isFalse);
