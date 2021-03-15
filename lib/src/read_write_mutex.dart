@@ -180,17 +180,28 @@ class ReadWriteMutex {
 
   /// Convenience method for protecting a function with a read lock.
   ///
-  /// A read lock is acquired before invoking the [criticalSection] function.
-  /// If the critical section returns a Future, it waits for it to be completed
-  /// before the read lock is released. The read lock is always released
-  /// (even if the critical section throws an exception).
+  /// This method guarantees a read lock is always acquired before invoking the
+  /// [criticalSection] function. It also guarantees the lock is always
+  /// released.
   ///
-  /// Returns a Future that completes after the read lock is released.
+  /// A critical section should always contain asynchronous code, since purely
+  /// synchronous code does not need to be protected inside a critical section.
+  /// Therefore, the critical section is a function that returns a _Future_.
+  /// If the critical section does not need to return a value, it should be
+  /// defined as returning `Future<void>`.
+  ///
+  /// Returns a _Future_ whose value is the value of the _Future_ returned by
+  /// the critical section.
+  ///
+  /// An exception is thrown if the critical section throws an exception,
+  /// or an exception is thrown while waiting for the _Future_ returned by
+  /// the critical section to complete. The lock is released, when those
+  /// exceptions occur.
 
-  Future<void> protectRead(Function criticalSection) async {
+  Future<T> protectRead<T>(Future<T> criticalSection()) async {
     await acquireRead();
     try {
-      await criticalSection();
+      return await criticalSection();
     } finally {
       release();
     }
@@ -198,17 +209,28 @@ class ReadWriteMutex {
 
   /// Convenience method for protecting a function with a write lock.
   ///
-  /// A write lock is acquired before invoking the [criticalSection] function.
-  /// If the critical section returns a Future, it waits for it to be completed
-  /// before the write lock is released. The write lock is always released
-  /// (even if the critical section throws an exception).
+  /// This method guarantees a write lock is always acquired before invoking the
+  /// [criticalSection] function. It also guarantees the lock is always
+  /// released.
   ///
-  /// Returns a Future that completes after the write lock is released.
+  /// A critical section should always contain asynchronous code, since purely
+  /// synchronous code does not need to be protected inside a critical section.
+  /// Therefore, the critical section is a function that returns a _Future_.
+  /// If the critical section does not need to return a value, it should be
+  /// defined as returning `Future<void>`.
+  ///
+  /// Returns a _Future_ whose value is the value of the _Future_ returned by
+  /// the critical section.
+  ///
+  /// An exception is thrown if the critical section throws an exception,
+  /// or an exception is thrown while waiting for the _Future_ returned by
+  /// the critical section to complete. The lock is released, when those
+  /// exceptions occur.
 
-  Future<void> protectWrite(Function criticalSection) async {
+  Future<T> protectWrite<T>(Future<T> criticalSection()) async {
     await acquireWrite();
     try {
-      await criticalSection();
+      return await criticalSection();
     } finally {
       release();
     }

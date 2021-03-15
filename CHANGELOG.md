@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.0.0
+
+- BREAKING CHANGE: critical section functions must return a Future.
+    - This is unlikely to affect real-world code, since only functions
+      containing asynchronous code would be critical.
+- Protect method returns Future to the value from the critical section.
+
 ## 2.0.0
 
 - Null safety release.
