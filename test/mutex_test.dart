@@ -179,7 +179,7 @@ void main() {
     test('lock released on success', () async {
       final m = Mutex();
 
-      await m.protect(() async {
+      await m.protect<void>(() async {
         // critical section
         expect(m.isLocked, isTrue);
       });
@@ -210,15 +210,36 @@ void main() {
       // explicit return type int
       final value = await m.protect<int>(() async => 35);
       expect(value, 35);
+      expect(m.isLocked, isFalse);
 
       // explicit return type String
       final word = await m.protect<String>(() async => '42');
       expect(word, '42');
+      expect(word.length, 2);
+      expect(m.isLocked, isFalse);
 
       // inferred return type String
       final data = await m.protect(() async => '42');
       expect(data, isA<String>());
       expect(data.length, 2);
+      expect(m.isLocked, isFalse);
+    });
+
+    test('nullable return value from critical section', () async {
+      final m = Mutex();
+      // explicit return type nullable String
+      final word = await m.protect<String?>(() async => null);
+      expect(word, null);
+    });
+
+    test('future returned from critical section', () async {
+      final m = Mutex();
+
+      // explicit return type void
+      final value = m.protect<void>(() async {});
+      expect(value, completes);
+      await value;
+      expect(m.isLocked, isFalse);
     });
   });
 }
