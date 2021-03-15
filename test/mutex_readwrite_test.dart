@@ -178,7 +178,7 @@ void main() {
     test('lock released on success', () async {
       final m = ReadWriteMutex();
 
-      await m.protectRead(() {
+      await m.protectRead(() async {
         // critical section
         expect(m.isLocked, isTrue);
       });
@@ -189,11 +189,12 @@ void main() {
       final m = ReadWriteMutex();
 
       try {
-        await m.protectRead(() {
+        await m.protectRead(() async {
           // critical section
           expect(m.isLocked, isTrue);
           throw const FormatException('testing');
         });
+        // ignore: dead_code
         fail('exception in critical section was not propagated');
       } on FormatException {
         expect(m.isLocked, isFalse);
@@ -207,7 +208,7 @@ void main() {
     test('lock released on success', () async {
       final m = ReadWriteMutex();
 
-      await m.protectWrite(() {
+      await m.protectWrite(() async {
         // critical section
         expect(m.isLocked, isTrue);
       });
@@ -218,11 +219,12 @@ void main() {
       final m = ReadWriteMutex();
 
       try {
-        await m.protectWrite(() {
+        await m.protectWrite(() async {
           // critical section
           expect(m.isLocked, isTrue);
           throw const FormatException('testing');
         });
+        // ignore: dead_code
         fail('exception in critical section was not propagated');
       } on FormatException {
         expect(m.isLocked, isFalse);

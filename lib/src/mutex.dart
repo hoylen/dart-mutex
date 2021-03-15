@@ -10,7 +10,7 @@ part of mutex;
 ///
 ///     m = Mutex();
 ///
-///     await m.protect(() {
+///     await m.protect(() async {
 ///       // critical section
 ///     });
 ///
@@ -55,17 +55,25 @@ class Mutex {
 
   /// Convenience method for protecting a function with a lock.
   ///
-  /// A lock is acquired before invoking the [criticalSection] function.
-  /// If the critical section returns a Future, it waits for it to be completed
-  /// before the lock is released. The lock is always released
-  /// (even if the critical section throws an exception).
+  /// This method guarantees a lock is always acquired before invoking the
+  /// [criticalSection] function. It also guarantees the lock is always
+  /// released.
   ///
-  /// Returns a Future that completes with the value returned by [criticalSection]
-  /// after the lock is released. The type parameter [T] is the return type of the
-  /// critical section function.
-  /// Often this does not need to be given as it can be inferred from the critical
-  /// section's return type
-  Future<T> protect<T>(T criticalSection()) async {
+  /// A critical section should always contain asynchronous code, since purely
+  /// synchronous code does not need to be protected inside a critical section.
+  /// Therefore, the critical section is a function that returns a _Future_.
+  /// If the critical section does not need to return a value, it should be
+  /// defined as returning `Future<void>`.
+  ///
+  /// Returns a _Future_ whose value is the value of the _Future_ returned by
+  /// the critical section.
+  ///
+  /// An exception is thrown if the critical section throws an exception,
+  /// or an exception is thrown while waiting for the _Future_ returned by
+  /// the critical section to complete. The lock is released, when those
+  /// exceptions occur.
+
+  Future<T> protect<T>(Future<T> criticalSection()) async {
     await acquire();
     try {
       return await criticalSection();
