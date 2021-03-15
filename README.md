@@ -63,6 +63,8 @@ try {
 }
 ```
 
+### protect
+
 The following code uses the _protect_ convenience method to do the
 same thing as the above code. Use the convenence method whenever
 possible, since it ensures the lock will always be released.
@@ -72,6 +74,18 @@ await m.protect(() async {
   // critical section
 });
 ```
+
+If the critial section returns a Future, the _protect_ convenience
+method will return a Future to the value of that Future.
+
+```dart
+final result = await m.protect<int>(() async {
+  // critical section
+  return valueFromCriticalSection;
+});
+// result contains the valueFromCriticalSection
+```
+
 
 ## Read-write mutex
 
@@ -122,19 +136,39 @@ Acquiring a read lock:
       m.release();
     }
 
+### protectWrite and protectRead
+
 The following code uses the _protectWrite_ and _protectRead_
 convenience methods to do the same thing as the above code. Use the
 convenence method whenever possible, since it ensures the lock will
 always be released.
 
-    await m.protectWrite(() async {
-	  // critical write section
-	});
+```dart
+await m.protectWrite(() async {
+  // critical write section
+});
 
-    await m.protectRead(() async {
-	  // critical read section
-	});
+await m.protectRead(() async {
+  // critical read section
+});
+```
 
+If the critial section returns a Future, these convenience methods will
+return a Future to the value of that Future.
+
+```dart
+final result1 await m.protectWrite<String>(() async {
+  // critical write section
+  return valueFromCritialSection1;
+});
+// result1 contains the valueFromCriticalSection1
+
+final result2 = await m.protectRead(() async {
+  // critical read section
+  return valueFromCritialSection2;
+});
+// result2 contains the valueFromCriticalSection2
+```
 
 ## When mutual exclusion is not needed
 
