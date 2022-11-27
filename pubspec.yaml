@@ -1,6 +1,6 @@
 name: mutex
 description: Mutual exclusion with implementation of normal and read-write mutex
-version: 3.0.0
+version: 3.0.1
 homepage: https://github.com/hoylen/dart-mutex
 
 environment:

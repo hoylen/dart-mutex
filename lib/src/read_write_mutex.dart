@@ -166,14 +166,24 @@ class ReadWriteMutex {
       assert(false, 'invalid state');
     }
 
-    // Let all jobs that can now acquire a lock do so.
+    // If there are jobs waiting and the next job can acquire the mutex,
+    // let it acquire it and remove it from the queue.
+    //
+    // This is a while loop, because there could be multiple jobs on the
+    // queue waiting for a read-only mutex. So they can all be allowed to run.
 
     while (_waiting.isNotEmpty) {
       final nextJob = _waiting.first;
       if (_jobAcquired(nextJob)) {
         _waiting.removeAt(0);
       } else {
-        break; // no more can be acquired
+        // The next job cannot acquire the mutex. This only occurs when: the
+        // the currently running job has a write mutex (_state == -1); or the
+        // next job wants write mutex and there is a job currently running
+        // (regardless of what type of mutex it has acquired).
+        assert(_state < 0 || !nextJob.isRead,
+            'unexpected: next job cannot be acquired');
+        break; // no more can be removed from the queue
       }
     }
   }
@@ -245,9 +255,18 @@ class ReadWriteMutex {
 
   Future<void> _acquire({required bool isRead}) {
     final newJob = _ReadWriteMutexRequest(isRead: isRead);
-    if (!_jobAcquired(newJob)) {
+
+    if (_waiting.isNotEmpty || !_jobAcquired(newJob)) {
+      // This new job cannot run yet. There are either other jobs already
+      // waiting, or there are no waiting jobs but this job cannot start
+      // because the mutex is currently acquired (namely, either this new job
+      // or the currently running job is read-write).
+      //
+      // Add the new job to the end of the queue.
+
       _waiting.add(newJob);
     }
+
     return newJob.completer.future;
   }
 

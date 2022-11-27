@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'package:test/test.dart';
 import 'package:mutex/mutex.dart';
+import 'package:test/test.dart';
 
 //################################################################
 
@@ -155,22 +155,17 @@ void main() {
 
   test('mixture of read write locks execution order', () async {
     await Future.wait([
-      account.writing(10, 1, 100),
-      account.writing(20, 2, 100),
-      account.reading(0, 3, 100),
-      account.reading(20, 4, 100),
-      account.reading(30, 5, 100),
+      account.reading(0, 1, 100),
+      account.reading(10, 2, 100),
+      account.reading(20, 3, 100),
+      account.writing(30, 4, 100),
+      account.writing(40, 5, 100),
+      account.writing(50, 6, 100),
     ]);
 
-    // #3 Read is scheduled first, startDelay = 0, holds lock for 100 ms
-    // #4 and #5 are reads scheduled after #3
-    // Since multiple read locks are allowed
-    // even though #1 and and #2 write operations are scheduled earlier
-    // they wait for all read locks to released.
-    // This effectively serializes the writes after reads.
     expect(
       account.operationSequences,
-      orderedEquals(<int>[3, 4, 5, 1, 2]),
+      orderedEquals(<int>[1, 2, 3, 4, 5, 6]),
     );
   });
 

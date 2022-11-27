@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'package:test/test.dart';
 import 'package:mutex/mutex.dart';
+import 'package:test/test.dart';
 
 //################################################################
 /// Account simulating the classic "simultaneous update" concurrency problem.

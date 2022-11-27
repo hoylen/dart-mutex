@@ -1,4 +1,6 @@
-# Changelog
+## 3.0.1
+
+- Fixed bug with new read mutexes preventing a write mutex from being acquired.
 
 ## 3.0.0
 
