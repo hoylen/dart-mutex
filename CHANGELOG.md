@@ -1,3 +1,7 @@
+## 3.1.0
+
+- Increased minimum Dart SDK to 2.15.0 for `unawaited` function.
+
 ## 3.0.1
 
 - Fixed bug with new read mutexes preventing a write mutex from being acquired.
