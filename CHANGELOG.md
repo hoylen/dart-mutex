@@ -1,6 +1,8 @@
 ## 3.1.0
 
 - Increased minimum Dart SDK to 2.15.0 for `unawaited` function.
+- Added development dependencies lints ^2.1.1 and pana: ^0.21.37.
+- Fixed code to remove lint warnings.
 
 ## 3.0.1
 

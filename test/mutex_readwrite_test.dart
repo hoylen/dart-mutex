@@ -38,7 +38,7 @@ class RWTester {
   /// Writes to [_operationSequences]. If the readwrite locks are respected
   /// then the final state of the list will be in ascending order.
   Future<void> writing(int startDelay, int sequence, int endDelay) async {
-    await Future<Null>.delayed(Duration(milliseconds: startDelay));
+    await Future<void>.delayed(Duration(milliseconds: startDelay));
 
     await mutex.protectWrite(() async {
       final op = ++_operation;
@@ -49,7 +49,7 @@ class RWTester {
       // Add the position of operation to the list of operations.
       _operationSequences.add(sequence); // add position to list
       expect(mutex.isWriteLocked, isTrue);
-      await Future<Null>.delayed(Duration(milliseconds: endDelay));
+      await Future<void>.delayed(Duration(milliseconds: endDelay));
       _debugPrint('[$op] write finish: -> $_operationSequences');
     });
   }
@@ -58,14 +58,14 @@ class RWTester {
   ///
   ///
   Future<void> reading(int startDelay, int sequence, int endDelay) async {
-    await Future<Null>.delayed(Duration(milliseconds: startDelay));
+    await Future<void>.delayed(Duration(milliseconds: startDelay));
 
     await mutex.protectRead(() async {
       final op = ++_operation;
       _debugPrint('[$op] read start: <- $_operationSequences');
       expect(mutex.isReadLocked, isTrue);
       _operationSequences.add(sequence); // add position to list
-      await Future<Null>.delayed(Duration(milliseconds: endDelay));
+      await Future<void>.delayed(Duration(milliseconds: endDelay));
       _debugPrint('[$op] read finish: <- $_operationSequences');
     });
   }
@@ -120,7 +120,7 @@ void main() {
   });
 
   test('acquireWrite() before acquireRead()', () async {
-    const lockTimeout = const Duration(milliseconds: 100);
+    const lockTimeout = Duration(milliseconds: 100);
 
     final mutex = ReadWriteMutex();
 
@@ -137,7 +137,7 @@ void main() {
   });
 
   test('acquireRead() before acquireWrite()', () async {
-    const lockTimeout = const Duration(milliseconds: 100);
+    const lockTimeout = Duration(milliseconds: 100);
 
     final mutex = ReadWriteMutex();
 

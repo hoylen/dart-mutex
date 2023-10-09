@@ -39,7 +39,7 @@ class Account {
   ///
   Future<void> depositUnsafe(
       int amount, int startDelay, int dangerWindow) async {
-    await Future<Null>.delayed(Duration(milliseconds: startDelay));
+    await Future<void>.delayed(Duration(milliseconds: startDelay));
 
     await _depositCriticalSection(amount, dangerWindow);
   }
@@ -48,7 +48,7 @@ class Account {
   ///
   Future<void> depositWithMutex(
       int amount, int startDelay, int dangerWindow) async {
-    await Future<Null>.delayed(Duration(milliseconds: startDelay));
+    await Future<void>.delayed(Duration(milliseconds: startDelay));
 
     await mutex.acquire();
     try {
@@ -75,7 +75,7 @@ class Account {
 
     final tmp = _balance;
 
-    await Future<Null>.delayed(Duration(milliseconds: dangerWindow));
+    await Future<void>.delayed(Duration(milliseconds: dangerWindow));
 
     _balance = tmp + amount;
 

@@ -208,7 +208,7 @@ class ReadWriteMutex {
   /// the critical section to complete. The lock is released, when those
   /// exceptions occur.
 
-  Future<T> protectRead<T>(Future<T> criticalSection()) async {
+  Future<T> protectRead<T>(Future<T> Function() criticalSection) async {
     await acquireRead();
     try {
       return await criticalSection();
@@ -237,7 +237,7 @@ class ReadWriteMutex {
   /// the critical section to complete. The lock is released, when those
   /// exceptions occur.
 
-  Future<T> protectWrite<T>(Future<T> criticalSection()) async {
+  Future<T> protectWrite<T>(Future<T> Function() criticalSection) async {
     await acquireWrite();
     try {
       return await criticalSection();
